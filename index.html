@@ -636,7 +636,7 @@
                 });
             }
 
-            // ---------- 生成PDF报告（每日图表） ----------
+            // ---------- 生成PDF报告（每日图表，带动态Y轴）----------
             async function generateDateRangeReport(fromAuto = false) {
                 if (!fromAuto && stepsDetails.length === 0) {
                     startAutoCollect(true);
@@ -685,7 +685,7 @@
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
 
-                // 清空隐藏容器（以防有残留）
+                // 清空隐藏容器
                 pdfChartContainer.innerHTML = '';
 
                 // 逐天生成图表
@@ -693,7 +693,7 @@
                     const day = days[i];
                     const dateStr = formatDate(day);
 
-                    // 生成144个时间点（00:00 到 23:50）
+                    // 生成144个时间点
                     const labels = [];
                     const totalData = [];
                     const highData = [];
@@ -733,7 +733,7 @@
                             yData.push(closest ? closest.y : null);
                             zData.push(closest ? closest.z : null);
 
-                            // 标签（仅整点显示时间，其余留空减少拥挤）
+                            // 标签（仅整点显示）
                             if (min === 0) {
                                 labels.push(`${hour.toString().padStart(2, '0')}:00`);
                             } else {
@@ -741,6 +741,18 @@
                             }
                         }
                     }
+
+                    // 调试输出
+                    const hasTotal = totalData.some(v => v !== null);
+                    const hasHigh = highData.some(v => v !== null);
+                    console.log(`Day ${dateStr}: hasTotal=${hasTotal}, hasHigh=${hasHigh}`);
+
+                    // 计算左侧Y轴范围（动态）
+                    const allCounts = [...totalData, ...highData].filter(v => v !== null);
+                    let maxCount = allCounts.length > 0 ? Math.max(...allCounts) : 10;
+                    maxCount = Math.max(maxCount, 10); // 至少10
+                    const leftMin = 0;
+                    const leftMax = maxCount * 1.2; // 留20%空白
 
                     // 创建 canvas 并添加到隐藏容器
                     const canvas = document.createElement('canvas');
@@ -824,7 +836,8 @@
                                 'y-left': {
                                     type: 'linear',
                                     position: 'left',
-                                    beginAtZero: true,
+                                    min: leftMin,
+                                    max: leftMax,
                                     title: { display: true, text: 'Counts' },
                                     ticks: { font: { size: 8 } }
                                 },
@@ -841,8 +854,8 @@
                         }
                     });
 
-                    // 等待图表渲染（同步的，但需要微任务）
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    // 等待渲染
+                    await new Promise(resolve => setTimeout(resolve, 200));
 
                     // 捕获图像
                     const imgData = canvas.toDataURL('image/png');
@@ -862,17 +875,16 @@
                     // 添加图表图像
                     doc.addImage(imgData, 'PNG', 40, 80, 520, 260);
 
-                    // 销毁图表并移除canvas
+                    // 清理
                     chart.destroy();
                     pdfChartContainer.removeChild(canvas);
                 }
 
-                // 保存PDF
                 doc.save(`BraceSense_${deviceLast4}_${startDateStr}_${endDateStr}.pdf`);
                 updateStatus('Report generated successfully.');
             }
 
-            // ---------- 更新本地时间（带时区） ----------
+            // ---------- 更新本地时间 ----------
             function updateLocalTime() {
                 const now = new Date();
                 const y = now.getFullYear();
