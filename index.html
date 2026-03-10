@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <style>
+        /* 样式与上一版完全相同，此处省略以节省篇幅，但您需要在文件中保留完整样式 */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; padding: 16px; display: flex; flex-direction: column; align-items: center; }
         .container { max-width: 1200px; width: 100%; background: white; border-radius: 24px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); position: relative; }
@@ -25,70 +26,21 @@
         .data-value { font-size: 28px; font-weight: 700; color: #1c1c1e; }
         .sub-value { font-size: 16px; color: #6c6c70; margin-top: 4px; }
         footer { font-size: 13px; color: #8e8e93; margin-top: 20px; text-align: center; }
-        .date-range {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 15px;
-            background: #f8f9fc;
-            padding: 15px;
-            border-radius: 20px;
-            margin: 20px 0 10px;
-        }
-        .date-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .date-item label {
-            font-size: 14px;
-            color: #6c6c70;
-        }
-        .date-item input {
-            padding: 8px 12px;
-            border-radius: 20px;
-            border: 1px solid #d9d9e0;
-            background: white;
-            font-size: 14px;
-        }
-        .report-btn-container {
-            flex: 1;
-            min-width: 180px;
-        }
-        #loadingOverlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            visibility: hidden;
-        }
-        .loading-box {
-            background: white;
-            padding: 30px 40px;
-            border-radius: 24px;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-            max-width: 400px;
-        }
-        .spinner {
-            border: 6px solid #f3f3f3;
-            border-top: 6px solid #007aff;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .progress-text { margin: 10px 0; font-size: 14px; color: #1c1c1e; }
-        .stopBtn { background: #ff3b30; margin-top: 15px; border: none; color: white; padding: 8px 20px; border-radius: 40px; cursor: pointer; }
+        .date-range { display: flex; flex-wrap: wrap; align-items: center; gap: 15px; background: #f8f9fc; padding: 15px; border-radius: 20px; margin: 20px 0 10px; }
+        .date-item { display: flex; align-items: center; gap: 8px; }
+        .date-item label { font-size: 14px; color: #6c6c70; }
+        .date-item input { padding: 8px 12px; border-radius: 20px; border: 1px solid #d9d9e0; background: white; font-size: 14px; }
+        .report-btn-container { flex: 1; min-width: 180px; }
+        #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:1000; visibility:hidden; }
+        .loading-box { background:white; padding:30px 40px; border-radius:24px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.2); max-width:400px; }
+        .spinner { border:6px solid #f3f3f3; border-top:6px solid #007aff; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; margin:0 auto 20px; }
+        @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
+        .progress-text { margin:10px 0; font-size:14px; color:#1c1c1e; }
+        .stopBtn { background:#ff3b30; margin-top:15px; border:none; color:white; padding:8px 20px; border-radius:40px; cursor:pointer; }
     </style>
 </head>
 <body>
-    <!-- Loading overlay (for data fetching) -->
+    <!-- Loading overlay -->
     <div id="loadingOverlay">
         <div class="loading-box">
             <div class="spinner"></div>
@@ -99,7 +51,6 @@
     </div>
 
     <div class="container">
-        <!-- iOS hint (English) -->
         <div class="ios-badge">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                 <span style="background: #007aff; color: white; padding: 4px 12px; border-radius: 30px; font-size: 13px; font-weight: 500;">📱 iPhone user</span>
@@ -115,13 +66,11 @@
 
         <h1>BraceSense v3.0</h1>
 
-        <!-- Scan/Disconnect buttons -->
         <div class="flex-row">
             <button id="scanBtn" class="secondary">🔍 Scan Sensor by Bluetooth and Connect</button>
             <button id="disconnectBtn" disabled class="secondary">⛔ Disconnect</button>
         </div>
 
-        <!-- Date range and generate report button -->
         <div class="date-range">
             <div class="date-item">
                 <label>Start:</label>
@@ -139,7 +88,6 @@
         <div class="status-box" id="status">⚪ Not connected. Click "Scan Sensor by Bluetooth and Connect" to find your Stride1850 sensor.</div>
         <div id="deviceListContainer"></div>
 
-        <!-- Data cards -->
         <div id="dataSection" style="display: none;">
             <div class="data-grid">
                 <div class="data-card">
@@ -162,7 +110,6 @@
                 </div>
             </div>
 
-            <!-- Manual fetch buttons (kept for power users) -->
             <div class="flex-row">
                 <button id="refreshBtn" class="secondary">🔄 Refresh basic data</button>
                 <button id="getDetailBtn" class="secondary">📋 Fetch step details (52)</button>
@@ -185,7 +132,6 @@
             const CMD_GET_HISTORY_TOTAL = 0x51;
             const CMD_GET_DETAIL_STEPS = 0x52;
             const CMD_GET_ACC_INSTANT = 0x53;
-            // 54 command removed as per requirement
 
             // ---------- Global variables ----------
             let bluetoothDevice = null;
@@ -231,7 +177,7 @@
             const startDateInput = document.getElementById('startDateInput');
             const endDateInput = document.getElementById('endDateInput');
 
-            // ---------- Initialize date range (last 28 days) ----------
+            // ---------- Initialize date range ----------
             function initDateRange() {
                 const today = new Date();
                 const endDate = new Date(today);
@@ -323,7 +269,6 @@
                 while (offset < fullBytes.length) {
                     const cmd = fullBytes[offset] & 0x7F;
                     
-                    // End packet detection (cmd + 0xFF)
                     if (offset + 1 < fullBytes.length && fullBytes[offset+1] === 0xFF) {
                         console.log(`End packet for command 0x${cmd.toString(16)}`);
                         if (autoCollectActive && cmd === currentCommand) {
@@ -424,7 +369,7 @@
                 accInstant.push({ time, x, y, z });
             }
 
-            // ---------- Auto-collection (report mode) ----------
+            // ---------- Auto-collection ----------
             function resetCommandTimeout(reportMode) {
                 if (commandTimeout) clearTimeout(commandTimeout);
                 commandTimeout = setTimeout(() => {
@@ -453,7 +398,6 @@
                 if (currentCommand === CMD_GET_DETAIL_STEPS) {
                     startCommand(CMD_GET_ACC_INSTANT, reportMode);
                 } else if (currentCommand === CMD_GET_ACC_INSTANT) {
-                    // After 53 command, finish collection (no 54)
                     finishAutoCollect(reportMode);
                 }
             }
@@ -502,7 +446,7 @@
                 return d;
             }
 
-            // ---------- Generate PDF report (10‑minute detailed list) ----------
+            // ---------- Generate PDF report ----------
             function generateDateRangeReport(fromAuto = false) {
                 if (!fromAuto && stepsDetails.length === 0) {
                     startAutoCollect(true);
@@ -519,7 +463,6 @@
                 const startDateTime = new Date(startDateStr + 'T00:00:00');
                 const endDateTime = new Date(endDateStr + 'T23:59:59.999');
 
-                // Generate all 10‑minute slots
                 const slots = [];
                 let current = new Date(startDateTime);
                 while (current <= endDateTime) {
@@ -529,7 +472,6 @@
                     current = new Date(current.getTime() + 10 * 60 * 1000);
                 }
 
-                // Build step map
                 const stepsMap = new Map();
                 stepsDetails.forEach(step => {
                     const key = floorTo10Minutes(step.startTime).getTime();
@@ -545,7 +487,6 @@
                     const totalSwings = step ? Math.floor(step.totalSteps / 2) : '--';
                     const highIntensity = step ? Math.floor(step.highSteps / 2) : '--';
 
-                    // Find instant ACC closest to middle of slot
                     const midTime = new Date(slot.start.getTime() + 5 * 60 * 1000);
                     let closestInstant = null;
                     let minDiff = Infinity;
@@ -681,14 +622,12 @@
                     dataSection.style.display = 'block';
                     updateStatus('Connected. Fetching all historical data...');
 
-                    // Update scan button to connected state
                     scanBtn.innerText = '✅ Connected';
                     scanBtn.style.backgroundColor = '#34c759';
                     scanBtn.style.borderColor = '#34c759';
                     scanBtn.style.color = 'white';
                     scanBtn.disabled = true;
 
-                    // Enable disconnect button
                     disconnectBtn.disabled = false;
 
                     await startAutoCollect(true);
@@ -707,7 +646,6 @@
                 autoCollectActive = false;
                 hideLoading();
 
-                // Restore scan button
                 scanBtn.innerText = '🔍 Scan Sensor by Bluetooth and Connect';
                 scanBtn.style.backgroundColor = '';
                 scanBtn.style.borderColor = '';
@@ -721,14 +659,22 @@
                 await sendCommand(CMD_GET_HISTORY_TOTAL, [0x00]);
             }
 
+            // 修复：手动获取步数详细，增加连接检查
             async function fetchDetailSteps() {
-                if (!txChar) return;
+                if (!txChar) {
+                    alert('Please connect to a device first.');
+                    return;
+                }
                 await sendCommand(CMD_GET_DETAIL_STEPS, [0x00]);
                 updateStatus('Step detail command sent');
             }
 
+            // 修复：手动获取ACC数据，增加连接检查
             async function fetchAcc() {
-                if (!txChar) return;
+                if (!txChar) {
+                    alert('Please connect to a device first.');
+                    return;
+                }
                 await sendCommand(CMD_GET_ACC_INSTANT, [0x00]);
                 updateStatus('ACC command sent');
             }
