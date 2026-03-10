@@ -491,7 +491,6 @@
                 }
             }
 
-            // 修改后的 finishAutoCollect：采集完成后更新状态文字
             function finishAutoCollect(reportMode) {
                 if (commandTimeout) clearTimeout(commandTimeout);
                 commandTimeout = null;
@@ -500,12 +499,9 @@
                 hideLoading();
                 
                 if (reportMode) {
-                    // 报告模式：采集完成后立即生成报告
                     generateDateRangeReport(true);
-                    // 更新状态（报告生成后可能还会更新，但这里先设置一个通用提示）
                     updateStatus('Report generated. You can generate another report if needed.');
                 } else {
-                    // 非报告模式（手动采集）：更新状态为完成
                     updateStatus('Data collection completed. You can now generate a report.');
                 }
             }
@@ -557,7 +553,6 @@
                 const startDateTime = new Date(startDateStr + 'T00:00:00');
                 const endDateTime = new Date(endDateStr + 'T23:59:59.999');
 
-                // Generate all 10‑minute slots
                 const slots = [];
                 let current = new Date(startDateTime);
                 while (current <= endDateTime) {
@@ -567,7 +562,6 @@
                     current = new Date(current.getTime() + 10 * 60 * 1000);
                 }
 
-                // Build step map
                 const stepsMap = new Map();
                 stepsDetails.forEach(step => {
                     const key = floorTo10Minutes(step.startTime).getTime();
@@ -584,7 +578,6 @@
                     const totalSwings = step ? Math.floor(step.totalSteps / 2) : '--';
                     const highIntensity = step ? Math.floor(step.highSteps / 2) : '--';
 
-                    // Find instant ACC closest to middle of slot
                     const midTime = new Date(slot.start.getTime() + 5 * 60 * 1000);
                     let closestInstant = null;
                     let minDiff = Infinity;
@@ -601,7 +594,6 @@
                     const avgY = closestInstant ? closestInstant.y : '--';
                     const avgZ = closestInstant ? closestInstant.z : '--';
 
-                    // Find cumulative ACC closest to end of slot
                     let closestCum = null;
                     minDiff = Infinity;
                     for (let a of accCumulative) {
@@ -631,7 +623,6 @@
                     ]);
                 });
 
-                // Get device ID last 4 characters
                 let deviceLast4 = '----';
                 if (bluetoothDevice && bluetoothDevice.name) {
                     const name = bluetoothDevice.name;
@@ -639,7 +630,6 @@
                     if (match) deviceLast4 = match[1].toUpperCase();
                 }
 
-                // Format dates for filename (YYYYMMDD)
                 const startFile = startDateStr.replace(/-/g, '');
                 const endFile = endDateStr.replace(/-/g, '');
 
@@ -673,8 +663,6 @@
                 });
 
                 doc.save(`BraceSense_${deviceLast4}_${startFile}_${endFile}.pdf`);
-
-                // 在报告生成后更新状态（可选）
                 updateStatus('Report generated successfully.');
             }
 
@@ -696,8 +684,6 @@
                 const m = String(now.getMonth()+1).padStart(2,'0');
                 const d = String(now.getDate()).padStart(2,'0');
                 dateSpan.innerText = `${y}-${m}-${d}`;
-
-                // Determine timezone label
                 const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
                 timezoneLabel.innerText = `(${tz})`;
             }
@@ -718,7 +704,6 @@
                     bluetoothDevice = device;
                     updateStatus(`Connecting to ${device.name}...`);
 
-                    // Automatically connect after selection
                     await connectToDevice();
                 } catch (e) {
                     updateStatus('Scan cancelled or failed', true);
@@ -736,9 +721,8 @@
                     rxChar.addEventListener('characteristicvaluechanged', handleRxData);
 
                     await sendCommand(CMD_REAL_TIME_STEP, [0x01]);
-                    await refreshData(); // Get battery and today's total
+                    await refreshData();
 
-                    // Show device ID (last 4 characters)
                     if (bluetoothDevice.name) {
                         const name = bluetoothDevice.name;
                         const match = name.match(/([A-F0-9]{4})$/i);
@@ -750,7 +734,13 @@
                     dataSection.style.display = 'block';
                     updateStatus('Connected. Fetching all historical data...');
 
-                    // Auto‑collect all historical data
+                    // Update scan button to connected state
+                    scanBtn.innerText = '✅ Connected';
+                    scanBtn.style.backgroundColor = '#34c759';
+                    scanBtn.style.borderColor = '#34c759';
+                    scanBtn.style.color = 'white';
+                    scanBtn.disabled = true;
+
                     await startAutoCollect(true);
                 } catch (e) {
                     updateStatus('Connection failed: ' + e.message, true);
@@ -766,6 +756,13 @@
                 disconnectBtn.disabled = true;
                 autoCollectActive = false;
                 hideLoading();
+
+                // Restore scan button
+                scanBtn.innerText = '🔍 Scan Sensor by Bluetooth and Connect';
+                scanBtn.style.backgroundColor = '';
+                scanBtn.style.borderColor = '';
+                scanBtn.style.color = '';
+                scanBtn.disabled = false;
             }
 
             async function refreshData() {
