@@ -166,7 +166,7 @@
             <div class="flex-row">
                 <button id="refreshBtn" class="secondary">🔄 Refresh basic data</button>
                 <button id="getDetailBtn" class="secondary">📋 Fetch step details (52)</button>
-                <button id="getAccBtn" class="secondary">📊 Fetch ACC data (53/54)</button>
+                <button id="getAccBtn" class="secondary">📊 Fetch ACC data (53)</button>
             </div>
         </div>
 
@@ -185,7 +185,7 @@
             const CMD_GET_HISTORY_TOTAL = 0x51;
             const CMD_GET_DETAIL_STEPS = 0x52;
             const CMD_GET_ACC_INSTANT = 0x53;
-            const CMD_GET_ACC_CUMULATIVE = 0x54;
+            // 54 command removed as per requirement
 
             // ---------- Global variables ----------
             let bluetoothDevice = null;
@@ -199,7 +199,6 @@
             
             let stepsDetails = [];
             let accInstant = [];
-            let accCumulative = [];
 
             // Auto-collection state
             let autoCollectActive = false;
@@ -300,11 +299,6 @@
                 if (val >= 0x8000) val -= 0x10000;
                 return val;
             }
-            function parseInt32LE(bytes, start) {
-                let val = parseUint32LE(bytes, start);
-                if (val >= 0x80000000) val -= 0x100000000;
-                return val;
-            }
             function bcdToDec(b) {
                 return ((b >> 4) * 10) + (b & 0x0F);
             }
@@ -359,16 +353,6 @@
                             updateProgress(`${getCommandName(cmd)}: received ${recordCount} records`);
                             resetCommandTimeout(isReportMode);
                         }
-                    } else if (cmd === CMD_GET_ACC_CUMULATIVE) {
-                        if (offset + 21 > fullBytes.length) break;
-                        const rec = fullBytes.slice(offset, offset + 21);
-                        parse54(rec);
-                        offset += 21;
-                        if (autoCollectActive && cmd === currentCommand) {
-                            recordCount++;
-                            updateProgress(`${getCommandName(cmd)}: received ${recordCount} records`);
-                            resetCommandTimeout(isReportMode);
-                        }
                     } else if (cmd === CMD_GET_BATTERY) {
                         if (offset + 16 > fullBytes.length) break;
                         const rec = fullBytes.slice(offset, offset + 16);
@@ -388,7 +372,6 @@
             function getCommandName(cmd) {
                 if (cmd === 0x52) return 'Step details';
                 if (cmd === 0x53) return 'Instant ACC';
-                if (cmd === 0x54) return 'Cumulative ACC';
                 return 'Unknown';
             }
 
@@ -441,21 +424,6 @@
                 accInstant.push({ time, x, y, z });
             }
 
-            function parse54(bytes) {
-                if ((bytes[0] & 0x7F) !== 0x54) return;
-                const year = bytes[3];
-                const month = bytes[4];
-                const day = bytes[5];
-                const hour = bytes[6];
-                const minute = bytes[7];
-                const second = bytes[8];
-                const time = bcdToDate(year, month, day, hour, minute, second);
-                const x = parseInt32LE(bytes, 9);
-                const y = parseInt32LE(bytes, 13);
-                const z = parseInt32LE(bytes, 17);
-                accCumulative.push({ time, x, y, z });
-            }
-
             // ---------- Auto-collection (report mode) ----------
             function resetCommandTimeout(reportMode) {
                 if (commandTimeout) clearTimeout(commandTimeout);
@@ -485,8 +453,7 @@
                 if (currentCommand === CMD_GET_DETAIL_STEPS) {
                     startCommand(CMD_GET_ACC_INSTANT, reportMode);
                 } else if (currentCommand === CMD_GET_ACC_INSTANT) {
-                    startCommand(CMD_GET_ACC_CUMULATIVE, reportMode);
-                } else if (currentCommand === CMD_GET_ACC_CUMULATIVE) {
+                    // After 53 command, finish collection (no 54)
                     finishAutoCollect(reportMode);
                 }
             }
@@ -516,7 +483,6 @@
             async function startAutoCollect(reportMode = false) {
                 stepsDetails = [];
                 accInstant = [];
-                accCumulative = [];
                 stopRequested = false;
                 autoCollectActive = true;
                 isReportMode = reportMode;
@@ -553,6 +519,7 @@
                 const startDateTime = new Date(startDateStr + 'T00:00:00');
                 const endDateTime = new Date(endDateStr + 'T23:59:59.999');
 
+                // Generate all 10‑minute slots
                 const slots = [];
                 let current = new Date(startDateTime);
                 while (current <= endDateTime) {
@@ -562,6 +529,7 @@
                     current = new Date(current.getTime() + 10 * 60 * 1000);
                 }
 
+                // Build step map
                 const stepsMap = new Map();
                 stepsDetails.forEach(step => {
                     const key = floorTo10Minutes(step.startTime).getTime();
@@ -569,7 +537,6 @@
                 });
 
                 accInstant.sort((a,b) => a.time - b.time);
-                accCumulative.sort((a,b) => a.time - b.time);
 
                 const rows = [];
                 slots.forEach(slot => {
@@ -578,6 +545,7 @@
                     const totalSwings = step ? Math.floor(step.totalSteps / 2) : '--';
                     const highIntensity = step ? Math.floor(step.highSteps / 2) : '--';
 
+                    // Find instant ACC closest to middle of slot
                     const midTime = new Date(slot.start.getTime() + 5 * 60 * 1000);
                     let closestInstant = null;
                     let minDiff = Infinity;
@@ -594,21 +562,6 @@
                     const avgY = closestInstant ? closestInstant.y : '--';
                     const avgZ = closestInstant ? closestInstant.z : '--';
 
-                    let closestCum = null;
-                    minDiff = Infinity;
-                    for (let a of accCumulative) {
-                        if (a.time >= slot.start && a.time <= slot.end) {
-                            const diff = Math.abs(a.time - slot.end);
-                            if (diff < minDiff) {
-                                minDiff = diff;
-                                closestCum = a;
-                            }
-                        }
-                    }
-                    const lastCumX = closestCum ? closestCum.x : '--';
-                    const lastCumY = closestCum ? closestCum.y : '--';
-                    const lastCumZ = closestCum ? closestCum.z : '--';
-
                     rows.push([
                         formatDateTime(slot.start),
                         formatDateTime(slot.end),
@@ -616,10 +569,7 @@
                         highIntensity,
                         avgX,
                         avgY,
-                        avgZ,
-                        lastCumX,
-                        lastCumY,
-                        lastCumZ
+                        avgZ
                     ]);
                 });
 
@@ -644,7 +594,7 @@
 
                 doc.autoTable({
                     startY: 55,
-                    head: [['Start', 'End', 'Total Swings', 'High Int.', 'X', 'Y', 'Z', 'Cum X', 'Cum Y', 'Cum Z']],
+                    head: [['Start', 'End', 'Total Swings', 'High Int.', 'X', 'Y', 'Z']],
                     body: rows,
                     theme: 'striped',
                     headStyles: { fillColor: [0, 122, 255] },
@@ -655,10 +605,7 @@
                         3: { cellWidth: 25 },
                         4: { cellWidth: 20 },
                         5: { cellWidth: 20 },
-                        6: { cellWidth: 20 },
-                        7: { cellWidth: 25 },
-                        8: { cellWidth: 25 },
-                        9: { cellWidth: 25 }
+                        6: { cellWidth: 20 }
                     }
                 });
 
@@ -741,7 +688,7 @@
                     scanBtn.style.color = 'white';
                     scanBtn.disabled = true;
 
-                    // 启用断开按钮（恢复正常透明度）
+                    // Enable disconnect button
                     disconnectBtn.disabled = false;
 
                     await startAutoCollect(true);
@@ -756,7 +703,6 @@
                 }
                 dataSection.style.display = 'none';
                 updateStatus('Disconnected');
-                // 禁用断开按钮（恢复半透明）
                 disconnectBtn.disabled = true;
                 autoCollectActive = false;
                 hideLoading();
@@ -784,8 +730,7 @@
             async function fetchAcc() {
                 if (!txChar) return;
                 await sendCommand(CMD_GET_ACC_INSTANT, [0x00]);
-                await sendCommand(CMD_GET_ACC_CUMULATIVE, [0x00]);
-                updateStatus('ACC commands sent');
+                updateStatus('ACC command sent');
             }
 
             // Event bindings
