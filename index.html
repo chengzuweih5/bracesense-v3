@@ -741,6 +741,9 @@
                     scanBtn.style.color = 'white';
                     scanBtn.disabled = true;
 
+                    // 启用断开按钮（恢复正常透明度）
+                    disconnectBtn.disabled = false;
+
                     await startAutoCollect(true);
                 } catch (e) {
                     updateStatus('Connection failed: ' + e.message, true);
@@ -753,6 +756,7 @@
                 }
                 dataSection.style.display = 'none';
                 updateStatus('Disconnected');
+                // 禁用断开按钮（恢复半透明）
                 disconnectBtn.disabled = true;
                 autoCollectActive = false;
                 hideLoading();
