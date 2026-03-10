@@ -114,7 +114,6 @@
         </div>
 
         <h1>BraceSense v3.0</h1>
-        <!-- 副标题已删除 -->
 
         <!-- Scan/Disconnect buttons -->
         <div class="flex-row">
@@ -492,6 +491,7 @@
                 }
             }
 
+            // 修改后的 finishAutoCollect：采集完成后更新状态文字
             function finishAutoCollect(reportMode) {
                 if (commandTimeout) clearTimeout(commandTimeout);
                 commandTimeout = null;
@@ -500,9 +500,13 @@
                 hideLoading();
                 
                 if (reportMode) {
+                    // 报告模式：采集完成后立即生成报告
                     generateDateRangeReport(true);
+                    // 更新状态（报告生成后可能还会更新，但这里先设置一个通用提示）
+                    updateStatus('Report generated. You can generate another report if needed.');
                 } else {
-                    updateStatus('Data collection completed');
+                    // 非报告模式（手动采集）：更新状态为完成
+                    updateStatus('Data collection completed. You can now generate a report.');
                 }
             }
 
@@ -521,7 +525,6 @@
                 autoCollectActive = true;
                 isReportMode = reportMode;
 
-                // 修改点：将初始加载消息改为用户要求的文字
                 showLoading('Connected and Collecting Data, Please wait');
                 startCommand(CMD_GET_DETAIL_STEPS, reportMode);
             }
@@ -670,6 +673,9 @@
                 });
 
                 doc.save(`BraceSense_${deviceLast4}_${startFile}_${endFile}.pdf`);
+
+                // 在报告生成后更新状态（可选）
+                updateStatus('Report generated successfully.');
             }
 
             function formatDateTime(d) {
