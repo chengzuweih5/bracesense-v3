@@ -94,10 +94,19 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .progress-text { margin: 10px 0; font-size: 14px; color: #1c1c1e; }
         .stopBtn { background: #ff3b30; margin-top: 15px; border: none; color: white; padding: 8px 20px; border-radius: 40px; cursor: pointer; }
+        /* 隐藏的画布容器，用于PDF生成 */
+        #pdfChartContainer {
+            position: fixed;
+            left: -1000px;
+            top: -1000px;
+            width: 800px;
+            height: 400px;
+            background: white;
+        }
     </style>
 </head>
 <body>
-    <!-- Loading overlay (for data fetching) -->
+    <!-- 加载遮罩层 -->
     <div id="loadingOverlay">
         <div class="loading-box">
             <div class="spinner"></div>
@@ -107,8 +116,11 @@
         </div>
     </div>
 
+    <!-- PDF图表专用的隐藏容器 -->
+    <div id="pdfChartContainer"></div>
+
     <div class="container">
-        <!-- iOS hint (English) -->
+        <!-- iOS 提示（英文） -->
         <div class="ios-badge">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                 <span style="background: #007aff; color: white; padding: 4px 12px; border-radius: 30px; font-size: 13px; font-weight: 500;">📱 iPhone user</span>
@@ -124,13 +136,13 @@
 
         <h1>BraceSense v3.0</h1>
 
-        <!-- Scan/Disconnect buttons -->
+        <!-- 扫描/断开按钮 -->
         <div class="flex-row">
             <button id="scanBtn" class="secondary">🔍 Scan Sensor by Bluetooth and Connect</button>
             <button id="disconnectBtn" disabled class="secondary">⛔ Disconnect</button>
         </div>
 
-        <!-- Date range and generate report button -->
+        <!-- 日期范围与生成报告按钮 -->
         <div class="date-range">
             <div class="date-item">
                 <label>Start:</label>
@@ -148,7 +160,7 @@
         <div class="status-box" id="status">⚪ Not connected. Click "Scan Sensor by Bluetooth and Connect" to find your Stride1850 sensor.</div>
         <div id="deviceListContainer"></div>
 
-        <!-- Data cards -->
+        <!-- 数据卡片区域 -->
         <div id="dataSection" style="display: none;">
             <div class="data-grid">
                 <div class="data-card">
@@ -171,7 +183,7 @@
                 </div>
             </div>
 
-            <!-- Manual fetch buttons and summary table button -->
+            <!-- 手动获取按钮和综合表格按钮 -->
             <div class="flex-row">
                 <button id="refreshBtn" class="secondary">🔄 Refresh basic data</button>
                 <button id="getDetailBtn" class="secondary">📋 Fetch step details (52)</button>
@@ -179,7 +191,7 @@
                 <button id="mergeBtn" class="secondary">📈 Generate Summary Table</button>
             </div>
 
-            <!-- Summary table (10-minute segments) -->
+            <!-- 综合表格（10分钟段） -->
             <div id="tableContainer" class="table-container" style="display: none;">
                 <table id="detailTable">
                     <thead>
@@ -202,7 +214,7 @@
 
     <script>
         (function() {
-            // ---------- Protocol constants ----------
+            // ---------- 协议常量 ----------
             const SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
             const TX_CHAR_UUID = '0000fff6-0000-1000-8000-00805f9b34fb';
             const RX_CHAR_UUID = '0000fff7-0000-1000-8000-00805f9b34fb';
@@ -213,7 +225,7 @@
             const CMD_GET_DETAIL_STEPS = 0x52;
             const CMD_GET_ACC_INSTANT = 0x53;
 
-            // ---------- Global variables ----------
+            // ---------- 全局变量 ----------
             let bluetoothDevice = null;
             let gattServer = null;
             let txChar = null;
@@ -226,7 +238,7 @@
             let stepsDetails = [];
             let accInstant = [];
 
-            // Auto-collection state
+            // 自动采集状态
             let autoCollectActive = false;
             let currentCommand = null;
             let commandTimeout = null;
@@ -234,7 +246,7 @@
             let stopRequested = false;
             let isReportMode = false;
 
-            // UI elements
+            // UI 元素
             const scanBtn = document.getElementById('scanBtn');
             const disconnectBtn = document.getElementById('disconnectBtn');
             const refreshBtn = document.getElementById('refreshBtn');
@@ -259,8 +271,9 @@
             const stopCollectBtn = document.getElementById('stopCollectBtn');
             const startDateInput = document.getElementById('startDateInput');
             const endDateInput = document.getElementById('endDateInput');
+            const pdfChartContainer = document.getElementById('pdfChartContainer');
 
-            // ---------- Initialize date range ----------
+            // ---------- 初始化日期范围（最近28天） ----------
             function initDateRange() {
                 const today = new Date();
                 const endDate = new Date(today);
@@ -277,7 +290,7 @@
             }
             initDateRange();
 
-            // ---------- Helper functions ----------
+            // ---------- 辅助函数 ----------
             function updateStatus(msg, isError = false) {
                 statusDiv.innerText = msg;
                 statusDiv.style.background = isError ? '#ffeeee' : '#ffffff';
@@ -319,7 +332,7 @@
                 console.log(`Command sent: 0x${cmd.toString(16)}`, params);
             }
 
-            // ---------- Parsing functions ----------
+            // ---------- 解析函数 ----------
             function parseUint32LE(bytes, start) {
                 return bytes[start] | (bytes[start+1] << 8) | (bytes[start+2] << 16) | (bytes[start+3] << 24);
             }
@@ -340,7 +353,7 @@
                 highStepsSpan.innerText = Math.floor(highSteps / 2);
             }
 
-            // ---------- Data handler ----------
+            // ---------- 数据处理 ----------
             function handleRxData(event) {
                 const value = event.target.value;
                 if (!value) return;
@@ -352,7 +365,7 @@
                 while (offset < fullBytes.length) {
                     const cmd = fullBytes[offset] & 0x7F;
                     
-                    // End packet detection (cmd + 0xFF)
+                    // 结束包检测 (cmd + 0xFF)
                     if (offset + 1 < fullBytes.length && fullBytes[offset+1] === 0xFF) {
                         console.log(`End packet for command 0x${cmd.toString(16)}`);
                         if (autoCollectActive && cmd === currentCommand) {
@@ -453,7 +466,7 @@
                 accInstant.push({ time, x, y, z });
             }
 
-            // ---------- Auto-collection ----------
+            // ---------- 自动采集流程 ----------
             function resetCommandTimeout(reportMode) {
                 if (commandTimeout) clearTimeout(commandTimeout);
                 commandTimeout = setTimeout(() => {
@@ -519,7 +532,7 @@
                 startCommand(CMD_GET_DETAIL_STEPS, reportMode);
             }
 
-            // ---------- Helper: floor to 10 minutes ----------
+            // ---------- 辅助：向下取整到10分钟 ----------
             function floorTo10Minutes(date) {
                 const d = new Date(date);
                 const minutes = d.getMinutes();
@@ -530,7 +543,7 @@
                 return d;
             }
 
-            // ---------- Format date as YYYY-MM-DD ----------
+            // ---------- 格式化日期 ----------
             function formatDate(d) {
                 const y = d.getFullYear();
                 const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -538,7 +551,6 @@
                 return `${y}-${m}-${day}`;
             }
 
-            // ---------- Format datetime for display ----------
             function formatDateTime(d) {
                 if (!d) return '';
                 const y = d.getFullYear();
@@ -550,7 +562,7 @@
                 return `${y}-${m}-${d2} ${h}:${min}:${s}`;
             }
 
-            // ---------- Merge data for summary table ----------
+            // ---------- 合并数据生成综合表格 ----------
             function mergeData() {
                 stepsDetails.sort((a,b) => a.startTime - b.startTime);
                 accInstant.sort((a,b) => a.time - b.time);
@@ -567,7 +579,7 @@
                     
                     if (totalVal < highVal) {
                         console.warn(`Data anomaly: total (${totalVal}) < high (${highVal}) at ${formatDateTime(start)}`);
-                        // Optionally fix: totalVal = highVal;
+                        // 可选修正：totalVal = highVal;
                     }
 
                     let closestInstant = null;
@@ -624,8 +636,8 @@
                 });
             }
 
-            // ---------- Generate PDF report with per-day charts ----------
-            function generateDateRangeReport(fromAuto = false) {
+            // ---------- 生成PDF报告（每日图表） ----------
+            async function generateDateRangeReport(fromAuto = false) {
                 if (!fromAuto && stepsDetails.length === 0) {
                     startAutoCollect(true);
                     return;
@@ -641,28 +653,28 @@
                 const startDateTime = new Date(startDateStr + 'T00:00:00');
                 const endDateTime = new Date(endDateStr + 'T23:59:59.999');
 
-                // Generate list of days
+                // 生成日期列表
                 const days = [];
                 let currentDay = new Date(startDateTime);
-                currentDay.setHours(0,0,0,0);
+                currentDay.setHours(0, 0, 0, 0);
                 const lastDay = new Date(endDateTime);
-                lastDay.setHours(0,0,0,0);
+                lastDay.setHours(0, 0, 0, 0);
                 while (currentDay <= lastDay) {
                     days.push(new Date(currentDay));
                     currentDay.setDate(currentDay.getDate() + 1);
                 }
 
-                // Build step map by 10-min key
+                // 构建步数映射（按10分钟起点的时间戳）
                 const stepsMap = new Map();
                 stepsDetails.forEach(step => {
                     const key = floorTo10Minutes(step.startTime).getTime();
                     stepsMap.set(key, step);
                 });
 
-                // Sort acc data
-                accInstant.sort((a,b) => a.time - b.time);
+                // 加速度数据排序
+                accInstant.sort((a, b) => a.time - b.time);
 
-                // Get device ID last 4
+                // 获取设备ID后四位
                 let deviceLast4 = '----';
                 if (bluetoothDevice && bluetoothDevice.name) {
                     const name = bluetoothDevice.name;
@@ -673,12 +685,15 @@
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
 
-                // Process each day
+                // 清空隐藏容器（以防有残留）
+                pdfChartContainer.innerHTML = '';
+
+                // 逐天生成图表
                 for (let i = 0; i < days.length; i++) {
                     const day = days[i];
                     const dateStr = formatDate(day);
 
-                    // Generate 144 time points (00:00 to 23:50)
+                    // 生成144个时间点（00:00 到 23:50）
                     const labels = [];
                     const totalData = [];
                     const highData = [];
@@ -692,14 +707,14 @@
                             pointTime.setHours(hour, min, 0, 0);
                             const pointKey = pointTime.getTime();
 
-                            // Step data
+                            // 步数数据
                             const step = stepsMap.get(pointKey);
                             const total = step ? Math.floor(step.totalSteps / 2) : null;
                             const high = step ? Math.floor(step.highSteps / 2) : null;
                             totalData.push(total);
                             highData.push(high);
 
-                            // Acceleration: find closest to middle of this 10-min slot
+                            // 加速度：取该10分钟段内最靠近中间时刻的一个点
                             const slotStart = pointTime;
                             const slotEnd = new Date(pointTime.getTime() + 10 * 60 * 1000 - 1);
                             const midTime = new Date(pointTime.getTime() + 5 * 60 * 1000);
@@ -718,22 +733,25 @@
                             yData.push(closest ? closest.y : null);
                             zData.push(closest ? closest.z : null);
 
-                            // Label (e.g., "00:00")
+                            // 标签（仅整点显示时间，其余留空减少拥挤）
                             if (min === 0) {
-                                labels.push(`${hour.toString().padStart(2,'0')}:00`);
+                                labels.push(`${hour.toString().padStart(2, '0')}:00`);
                             } else {
-                                labels.push(''); // skip label for non-zero minutes to reduce clutter
+                                labels.push('');
                             }
                         }
                     }
 
-                    // Create a temporary canvas to draw the chart
+                    // 创建 canvas 并添加到隐藏容器
                     const canvas = document.createElement('canvas');
                     canvas.width = 800;
                     canvas.height = 400;
-                    const ctx = canvas.getContext('2d');
+                    canvas.style.width = '800px';
+                    canvas.style.height = '400px';
+                    pdfChartContainer.appendChild(canvas);
 
-                    // Configure dual Y axes
+                    // 绘制图表
+                    const ctx = canvas.getContext('2d');
                     const chart = new Chart(ctx, {
                         type: 'line',
                         data: {
@@ -799,7 +817,7 @@
                                 tooltip: { enabled: false }
                             },
                             scales: {
-                                x: { 
+                                x: {
                                     ticks: { maxTicksLimit: 12, font: { size: 8 } },
                                     grid: { display: false }
                                 },
@@ -816,42 +834,45 @@
                                     min: -200,
                                     max: 200,
                                     grid: { drawOnChartArea: false },
-                                    title: { display: true, text: 'Acceleration (g?)' },
+                                    title: { display: true, text: 'Acceleration' },
                                     ticks: { font: { size: 8 } }
                                 }
                             }
                         }
                     });
 
-                    // Need a small delay to ensure chart is rendered? Chart.js is synchronous.
-                    // Convert canvas to image
+                    // 等待图表渲染（同步的，但需要微任务）
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
+                    // 捕获图像
                     const imgData = canvas.toDataURL('image/png');
 
-                    // Add page for first day, then subsequent days add a page
+                    // 添加PDF页面
                     if (i > 0) {
                         doc.addPage();
                     }
 
-                    // Add header
+                    // 添加页眉
                     doc.setFontSize(14);
                     doc.text(`BraceSense Report - ${dateStr}`, 40, 40);
                     doc.setFontSize(10);
                     doc.text(`Device ID: ${deviceLast4}`, 40, 55);
                     doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 70);
 
-                    // Add chart image
+                    // 添加图表图像
                     doc.addImage(imgData, 'PNG', 40, 80, 520, 260);
 
-                    // Clean up chart instance (optional)
+                    // 销毁图表并移除canvas
                     chart.destroy();
+                    pdfChartContainer.removeChild(canvas);
                 }
 
-                // Save PDF
+                // 保存PDF
                 doc.save(`BraceSense_${deviceLast4}_${startDateStr}_${endDateStr}.pdf`);
                 updateStatus('Report generated successfully.');
             }
 
-            // ---------- Update local time with timezone ----------
+            // ---------- 更新本地时间（带时区） ----------
             function updateLocalTime() {
                 const now = new Date();
                 const y = now.getFullYear();
@@ -864,7 +885,7 @@
             setInterval(updateLocalTime, 1000);
             updateLocalTime();
 
-            // ---------- Bluetooth operations ----------
+            // ---------- 蓝牙操作 ----------
             async function scanDevices() {
                 if (!navigator.bluetooth) {
                     alert('Web Bluetooth not supported. Please use Chrome, Edge, or Bluefy on iOS.');
@@ -968,7 +989,7 @@
                 updateStatus('ACC command sent');
             }
 
-            // Event bindings
+            // 事件绑定
             scanBtn.addEventListener('click', scanDevices);
             disconnectBtn.addEventListener('click', disconnectDevice);
             refreshBtn.addEventListener('click', refreshData);
@@ -978,7 +999,7 @@
             reportBtn.addEventListener('click', () => generateDateRangeReport(false));
             stopCollectBtn.addEventListener('click', stopCollect);
 
-            // Initial state
+            // 初始状态
             disconnectBtn.disabled = true;
         })();
     </script>
