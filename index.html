@@ -157,7 +157,6 @@
                     <div class="sub-value" id="timezoneLabel">(Beijing Time)</div>
                 </div>
                 <div class="data-card">
-                    <!-- 修改：将 "Total swings (today)" 改为 "Total swings (L+H)" -->
                     <div class="data-label">Total swings (L+H)</div>
                     <div class="data-value" id="totalStepsValue">--</div>
                     <div class="sub-value">High: <span id="highStepsValue">--</span></div>
@@ -522,7 +521,8 @@
                 autoCollectActive = true;
                 isReportMode = reportMode;
 
-                showLoading('Fetching step details...');
+                // 修改点：将初始加载消息改为用户要求的文字
+                showLoading('Connected and Collecting Data, Please wait');
                 startCommand(CMD_GET_DETAIL_STEPS, reportMode);
             }
 
